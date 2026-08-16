@@ -29,7 +29,7 @@ fn main() -> io::Result<()> {
         }
 
         let mut parts = input.split_whitespace();
-        
+
         let Some(cmd) = parts.next() else {
             continue;
         };
@@ -66,23 +66,20 @@ fn main() -> io::Result<()> {
             "cls" => {
                 eprintln!("call clear");
             }
-            _ => { 
-                match Command::new(cmd).args(args).status() {
-                    Ok(status) => {
-                        if !status.success() {
-                            eprintln!(r#"{SHELL_NAME}: "{cmd}": command exited with {status}"#);
-                        }
-                    }
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                        eprintln!(r#"{SHELL_NAME}: "{cmd}": command not found"#);
-                    }
-                    Err(error) => {
-                        eprintln!(r#"{SHELL_NAME}: "{cmd}": failed to run: {error}"#);
+            _ => match Command::new(cmd).args(args).status() {
+                Ok(status) => {
+                    if !status.success() {
+                        eprintln!(r#"{SHELL_NAME}: "{cmd}": command exited with {status}"#);
                     }
                 }
-            }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    eprintln!(r#"{SHELL_NAME}: "{cmd}": command not found"#);
+                }
+                Err(error) => {
+                    eprintln!(r#"{SHELL_NAME}: "{cmd}": failed to run: {error}"#);
+                }
+            },
         }
-        
     }
 
     Ok(())
