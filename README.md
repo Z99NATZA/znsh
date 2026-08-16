@@ -1,4 +1,4 @@
-# ZNSHELL (z nine nine natza)
+# ZNSHELL
 
 ```text
 Project created: 2026-08-16

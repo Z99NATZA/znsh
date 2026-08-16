@@ -63,22 +63,26 @@ fn main() -> io::Result<()> {
                     }
                 }
             }
-            "cls" => {
-                eprintln!("call clear");
-            }
-            _ => match Command::new(cmd).args(args).status() {
-                Ok(status) => {
-                    if !status.success() {
-                        eprintln!(r#"{SHELL_NAME}: "{cmd}": command exited with {status}"#);
+            _ => {
+                let cmd = match cmd {
+                    "cls" => "clear",
+                    _ => cmd
+                };
+
+                match Command::new(cmd).args(args).status() {
+                    Ok(status) => {
+                        if !status.success() {
+                            eprintln!(r#"{SHELL_NAME}: "{cmd}": command exited with {status}"#);
+                        }
+                    }
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                        eprintln!(r#"{SHELL_NAME}: "{cmd}": command not found"#);
+                    }
+                    Err(error) => {
+                        eprintln!(r#"{SHELL_NAME}: "{cmd}": failed to run: {error}"#);
                     }
                 }
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                    eprintln!(r#"{SHELL_NAME}: "{cmd}": command not found"#);
-                }
-                Err(error) => {
-                    eprintln!(r#"{SHELL_NAME}: "{cmd}": failed to run: {error}"#);
-                }
-            },
+            }
         }
     }
 
