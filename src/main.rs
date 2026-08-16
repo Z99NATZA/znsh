@@ -1,3 +1,5 @@
+use znsh::parser;
+
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -28,13 +30,13 @@ fn main() -> io::Result<()> {
             continue;
         }
 
-        let mut parts = input.split_whitespace();
+        let tokens = parser::tokenize(input);
 
-        let Some(cmd) = parts.next() else {
+        let Some((cmd, args)) = tokens.split_first() else {
             continue;
         };
 
-        let args: Vec<&str> = parts.collect();
+        let cmd = cmd.as_str();
 
         match cmd {
             "exit" | "q" | "quit" => {
@@ -48,8 +50,7 @@ fn main() -> io::Result<()> {
 
                 let target = args
                     .first()
-                    .copied()
-                    .map(PathBuf::from)
+                    .map(|p| PathBuf::from(p.as_str()))
                     .or_else(|| env::var_os("HOME").map(PathBuf::from));
 
                 match target {
@@ -63,10 +64,13 @@ fn main() -> io::Result<()> {
                     }
                 }
             }
+            "echo" => {
+                println!("{}", args.join(" "));
+            }
             _ => {
                 let cmd = match cmd {
                     "cls" => "clear",
-                    _ => cmd
+                    _ => cmd,
                 };
 
                 match Command::new(cmd).args(args).status() {
