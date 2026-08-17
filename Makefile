@@ -1,8 +1,5 @@
 run:
+	cargo fmt
+	cargo clippy
 	cargo run
 
-fmt:
-	cargo fmt
-	
-clpy:
-	cargo clippy

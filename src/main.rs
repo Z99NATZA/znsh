@@ -50,7 +50,7 @@ fn main() -> io::Result<()> {
 
                 let target = args
                     .first()
-                    .map(|p| PathBuf::from(p.as_str()))
+                    .map(PathBuf::from)
                     .or_else(|| env::var_os("HOME").map(PathBuf::from));
 
                 match target {
