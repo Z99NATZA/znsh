@@ -1,4 +1,9 @@
-pub fn tokenize(input: &str) -> Vec<String> {
+#[derive(Debug, PartialEq)]
+pub enum ParseError {
+    UnclosedDoubleQuote,
+}
+
+pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut in_double_quotes = false;
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -15,20 +20,21 @@ pub fn tokenize(input: &str) -> Vec<String> {
                 tokens.push(std::mem::take(&mut current));
                 token_started = false;
             }
-        }
-        else {
+        } else {
             current.push(c);
             token_started = true;
         }
+    }
+
+    if in_double_quotes {
+        return Err(ParseError::UnclosedDoubleQuote);
     }
 
     if token_started {
         tokens.push(current);
     }
 
-    println!("{tokens:?}");
-
-    tokens
+    Ok(tokens)
 }
 
 #[cfg(test)]
@@ -39,11 +45,11 @@ mod tests {
     fn splits_words_on_whitespace() {
         assert_eq!(
             tokenize("echo hello world"),
-            vec![
+            Ok(vec![
                 String::from("echo"),
                 String::from("hello"),
                 String::from("world"),
-            ]
+            ])
         );
     }
 
@@ -51,7 +57,7 @@ mod tests {
     fn keeps_double_quoted_words_together() {
         assert_eq!(
             tokenize(r#"echo "hello world""#),
-            vec![String::from("echo"), String::from("hello world"),]
+            Ok(vec![String::from("echo"), String::from("hello world"),])
         )
     }
 }

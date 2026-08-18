@@ -30,7 +30,13 @@ fn main() -> io::Result<()> {
             continue;
         }
 
-        let tokens = parser::tokenize(input);
+        let tokens = match parser::tokenize(input) {
+            Ok(tokens) => tokens,
+            Err(error) => {
+                eprintln!("{SHELL_NAME}: parser error: {error:?}");
+                continue;
+            }
+        };
 
         let Some((cmd, args)) = tokens.split_first() else {
             continue;

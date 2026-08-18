@@ -2,6 +2,7 @@
 
 ```text
 Project created: 2026-08-16
+- Shell script
 - Open source
-- Developed and tested on Ubuntu Linux
+- Developed on Ubuntu Linux
 ```
