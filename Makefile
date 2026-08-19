@@ -3,3 +3,5 @@ run:
 	cargo clippy
 	cargo run
 
+tests:
+	cargo test -- --nocapture
