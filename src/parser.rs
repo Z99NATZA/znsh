@@ -16,6 +16,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut tokens = Vec::new();
     let mut current = String::new();
     let mut token_started = false;
+    let mut is_bslash = false;
 
     for c in input.chars() {
         match c {
@@ -37,8 +38,11 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
                 token_started = true;
             }
+            '\\' => {
+                is_bslash = true;
+            }
             _ => {
-                if c.is_whitespace() && in_quote_mode == QuoteMode::None {
+                if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
                     if token_started {
                         tokens.push(std::mem::take(&mut current));
                         token_started = false;
@@ -147,5 +151,18 @@ mod tests {
             tokenize(r#"echo hello" worl"d"#),
             Ok(vec!["echo".to_string(), "hello world".to_string(),])
         )
+    }
+
+    #[test]
+    fn slash_for_special_char() {
+        assert_eq!(
+            tokenize(r#"echo hello\ world"#),
+            Ok(
+                vec![
+                    "echo".to_string(),
+                    "hello world".to_string(),
+                ]
+            )
+        );
     }
 }
