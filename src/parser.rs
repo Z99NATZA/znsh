@@ -23,19 +23,15 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                 match in_quote_mode {
                     QuoteMode::None => in_quote_mode = QuoteMode::Single,
                     QuoteMode::Single => in_quote_mode = QuoteMode::None,
-                    QuoteMode::Double => {
-                        current.push(c);
-                    }
-                };
+                    QuoteMode::Double => current.push(c),
+                }
 
                 token_started = true;
             }
             '"' => {
                 match in_quote_mode {
                     QuoteMode::None => in_quote_mode = QuoteMode::Double,
-                    QuoteMode::Single => {
-                        current.push(c);
-                    }
+                    QuoteMode::Single => current.push(c),
                     QuoteMode::Double => in_quote_mode = QuoteMode::None,
                 };
 
@@ -63,8 +59,8 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
             Ok(tokens)
         }
-        QuoteMode::Single => return Err(ParseError::UnclosedSingleQuote),
-        QuoteMode::Double => return Err(ParseError::UnclosedDoubleQuote),
+        QuoteMode::Single => Err(ParseError::UnclosedSingleQuote),
+        QuoteMode::Double => Err(ParseError::UnclosedDoubleQuote),
     }
 }
 
@@ -94,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unclosed_double_qoute() {
+    fn rejects_unclosed_double_quote() {
         assert_eq!(
             tokenize(r#"echo "hello"#),
             Err(ParseError::UnclosedDoubleQuote)
@@ -102,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn keeps_single_qoute_words_together() {
+    fn keeps_single_quote_words_together() {
         assert_eq!(
             tokenize("echo 'hello world' na"),
             Ok(vec![
@@ -111,5 +107,45 @@ mod tests {
                 "na".to_string(),
             ])
         );
+    }
+
+    #[test]
+    fn rejects_unclosed_single_quote() {
+        assert_eq!(
+            tokenize("echo 'hello"),
+            Err(ParseError::UnclosedSingleQuote),
+        );
+    }
+
+    #[test]
+    fn empty_arguments() {
+        assert_eq!(
+            tokenize(r#"echo "" '' "#),
+            Ok(vec!["echo".to_string(), "".to_string(), "".to_string(),])
+        );
+    }
+
+    #[test]
+    fn double_quote_inside_single_quote() {
+        assert_eq!(
+            tokenize(r#"echo 'a "b" c'"#),
+            Ok(vec!["echo".to_string(), r#"a "b" c"#.to_string(),])
+        )
+    }
+
+    #[test]
+    fn single_quote_inside_double_quote() {
+        assert_eq!(
+            tokenize(r#"echo "a 'b' c""#),
+            Ok(vec!["echo".to_string(), r#"a 'b' c"#.to_string(),])
+        )
+    }
+
+    #[test]
+    fn word_concatenation() {
+        assert_eq!(
+            tokenize(r#"echo hello" worl"d"#),
+            Ok(vec!["echo".to_string(), "hello world".to_string(),])
+        )
     }
 }
