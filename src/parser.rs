@@ -2,6 +2,7 @@
 pub enum ParseError {
     UnclosedDoubleQuote,
     UnclosedSingleQuote,
+    BackslashAtEnd,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,6 +31,14 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                 token_started = true;
             }
             '"' => {
+                if is_bslash {
+                    current.push(c);
+                    is_bslash = false;
+                    token_started = true;
+
+                    continue;
+                }
+
                 match in_quote_mode {
                     QuoteMode::None => in_quote_mode = QuoteMode::Double,
                     QuoteMode::Single => current.push(c),
@@ -38,9 +47,11 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
                 token_started = true;
             }
-            '\\' => {
-                is_bslash = true;
-            }
+            '\\' => match in_quote_mode {
+                QuoteMode::None => is_bslash = true,
+                QuoteMode::Single => current.push(c),
+                QuoteMode::Double => is_bslash = true,
+            },
             _ => {
                 if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
                     if token_started {
@@ -50,6 +61,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                 } else {
                     current.push(c);
                     token_started = true;
+                    is_bslash = false;
                 }
             }
         };
@@ -57,7 +69,10 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
     match in_quote_mode {
         QuoteMode::None => {
-            if token_started {
+            if is_bslash {
+                return Err(ParseError::BackslashAtEnd);
+            }
+            else if token_started {
                 tokens.push(current);
             }
 
@@ -154,15 +169,43 @@ mod tests {
     }
 
     #[test]
-    fn slash_for_special_char() {
+    fn back_slash_for_special_char() {
         assert_eq!(
             tokenize(r#"echo hello\ world"#),
-            Ok(
-                vec![
-                    "echo".to_string(),
-                    "hello world".to_string(),
-                ]
-            )
+            Ok(vec!["echo".to_string(), "hello world".to_string(),])
         );
+    }
+
+    #[test]
+    fn escape_applies_to_only_one_character() {
+        assert_eq!(
+            tokenize(r#"echo hello\ world again"#),
+            Ok(vec![
+                "echo".to_string(),
+                "hello world".to_string(),
+                "again".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn can_escape_quote() {
+        assert_eq!(
+            tokenize(r#"echo \"hello\""#),
+            Ok(vec!["echo".to_string(), r#""hello""#.to_string()])
+        );
+    }
+
+    #[test]
+    fn bslash_is_literal_inside_single_quotes() {
+        assert_eq!(
+            tokenize(r#"echo 'a\b'"#),
+            Ok(vec!["echo".to_string(), r#"a\b"#.to_string()])
+        );
+    }
+
+    #[test]
+    fn bslash_at_end() {
+        assert_eq!(tokenize("echo hello\\"), Err(ParseError::BackslashAtEnd));
     }
 }
