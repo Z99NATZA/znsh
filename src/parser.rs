@@ -18,6 +18,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut current = String::new();
     let mut token_started = false;
     let mut is_bslash = false;
+    let mut space_started = false;
 
     for c in input.chars() {
         match c {
@@ -54,11 +55,30 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
             },
             _ => {
                 if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
+                    space_started = true;
+
                     if token_started {
                         tokens.push(std::mem::take(&mut current));
                         token_started = false;
                     }
                 } else {
+                    if c == '|' {
+                        if space_started && in_quote_mode == QuoteMode::None && !token_started {
+                            tokens.push('|'.to_string());
+                            space_started = false;
+                            continue;
+                        }
+                        if in_quote_mode != QuoteMode::None {
+                            current.push(c);
+                            continue;
+                        } else {
+                            tokens.push(std::mem::take(&mut current));
+                            tokens.push('|'.to_string());
+                            token_started = false;
+                            continue;
+                        }
+                    }
+
                     current.push(c);
                     token_started = true;
                     is_bslash = false;
@@ -71,8 +91,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
         QuoteMode::None => {
             if is_bslash {
                 return Err(ParseError::BackslashAtEnd);
-            }
-            else if token_started {
+            } else if token_started {
                 tokens.push(current);
             }
 
@@ -111,7 +130,7 @@ mod tests {
     #[test]
     fn rejects_unclosed_double_quote() {
         assert_eq!(
-            tokenize(r#"echo "hello"#),
+            tokenize(r#"echo "hllo"#),
             Err(ParseError::UnclosedDoubleQuote)
         )
     }
@@ -207,5 +226,39 @@ mod tests {
     #[test]
     fn bslash_at_end() {
         assert_eq!(tokenize("echo hello\\"), Err(ParseError::BackslashAtEnd));
+    }
+
+    #[test]
+    fn separates_pipe_from_words() {
+        assert_eq!(
+            tokenize("echo hello|wc"),
+            Ok(vec![
+                "echo".to_string(),
+                "hello".to_string(),
+                "|".to_string(),
+                "wc".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn pipe_inside_double_quotes_is_literal() {
+        assert_eq!(
+            tokenize(r#"echo "hello|world""#),
+            Ok(vec!["echo".to_string(), "hello|world".to_string(),])
+        );
+    }
+
+    #[test]
+    fn separates_pipe_surrounded_by_spaces() {
+        assert_eq!(
+            tokenize("echo hello | wc"),
+            Ok(vec![
+                "echo".to_string(),
+                "hello".to_string(),
+                "|".to_string(),
+                "wc".to_string(),
+            ])
+        );
     }
 }

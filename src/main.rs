@@ -1,9 +1,8 @@
-use znsh::parser;
-
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
+use znsh::parser;
 
 fn main() -> io::Result<()> {
     const SHELL_NAME: &str = "znsh";
