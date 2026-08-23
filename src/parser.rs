@@ -18,7 +18,6 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut current = String::new();
     let mut token_started = false;
     let mut is_bslash = false;
-    let mut space_started = false;
 
     for c in input.chars() {
         match c {
@@ -55,17 +54,19 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
             },
             _ => {
                 if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
-                    space_started = true;
-
                     if token_started {
                         tokens.push(std::mem::take(&mut current));
                         token_started = false;
                     }
                 } else {
                     if c == '|' {
-                        if space_started && in_quote_mode == QuoteMode::None && !token_started {
+                        if is_bslash {
+                            current.push(c);
+                            is_bslash = false;
+                            continue;
+                        }
+                        if in_quote_mode == QuoteMode::None && !token_started {
                             tokens.push('|'.to_string());
-                            space_started = false;
                             continue;
                         }
                         if in_quote_mode != QuoteMode::None {
@@ -258,6 +259,34 @@ mod tests {
                 "hello".to_string(),
                 "|".to_string(),
                 "wc".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn leading_pipe_does_not_create_empty_token() {
+        assert_eq!(
+            tokenize("| echo"),
+            Ok(vec!["|".to_string(), "echo".to_string(),])
+        );
+    }
+
+    #[test]
+    fn escaped_pipe_is_literal() {
+        assert_eq!(
+            tokenize(r#"echo hello\|world"#),
+            Ok(vec!["echo".to_string(), "hello|world".to_string(),])
+        );
+    }
+
+    #[test]
+    fn pipe_escape_applies_to_only_one_character() {
+        assert_eq!(
+            tokenize(r#"echo hello\| world"#),
+            Ok(vec![
+                "echo".to_string(),
+                "hello|".to_string(),
+                "world".to_string(),
             ])
         );
     }
