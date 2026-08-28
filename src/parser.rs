@@ -12,113 +12,109 @@ enum QuoteMode {
     Double,
 }
 
-pub fn parse_pipeline(tokens: Vec<String>) {
-    // here
-}
-
 const SINGLE_QUOTE: char = '\'';
 
 pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
-    let mut in_quote_mode = QuoteMode::None;
+    let mut quote_mode = QuoteMode::None;
     let mut tokens = Vec::new();
-    let mut current = String::new();
-    let mut token_started = false;
-    let mut is_bslash = false;
+    let mut current_word = String::new();
+    let mut word_started = false;
+    let mut escaping = false;
 
-    for c in input.chars() {
-        match c {
+    for character in input.chars() {
+        match character {
             SINGLE_QUOTE => {
-                if is_bslash {
-                    current.push(c);
-                    is_bslash = false;
-                    token_started = true;
+                if escaping {
+                    current_word.push(character);
+                    escaping = false;
+                    word_started = true;
                     continue;
                 }
 
-                match in_quote_mode {
+                match quote_mode {
                     QuoteMode::None => {
-                        in_quote_mode = QuoteMode::Single;
+                        quote_mode = QuoteMode::Single;
                     }
                     QuoteMode::Single => {
-                        in_quote_mode = QuoteMode::None;
+                        quote_mode = QuoteMode::None;
                     }
-                    QuoteMode::Double => current.push(c),
+                    QuoteMode::Double => current_word.push(character),
                 }
 
-                token_started = true;
+                word_started = true;
             }
             '"' => {
-                if is_bslash {
-                    current.push(c);
-                    is_bslash = false;
-                    token_started = true;
+                if escaping {
+                    current_word.push(character);
+                    escaping = false;
+                    word_started = true;
 
                     continue;
                 }
 
-                match in_quote_mode {
-                    QuoteMode::None => in_quote_mode = QuoteMode::Double,
-                    QuoteMode::Single => current.push(c),
-                    QuoteMode::Double => in_quote_mode = QuoteMode::None,
+                match quote_mode {
+                    QuoteMode::None => quote_mode = QuoteMode::Double,
+                    QuoteMode::Single => current_word.push(character),
+                    QuoteMode::Double => quote_mode = QuoteMode::None,
                 };
 
-                token_started = true;
+                word_started = true;
             }
             '\\' => {
-                if is_bslash {
-                    current.push(c);
-                    is_bslash = false;
+                if escaping {
+                    current_word.push(character);
+                    escaping = false;
                     continue;
                 } else {
-                    match in_quote_mode {
-                        QuoteMode::None => is_bslash = true,
-                        QuoteMode::Single => current.push(c),
-                        QuoteMode::Double => is_bslash = true,
+                    match quote_mode {
+                        QuoteMode::None => escaping = true,
+                        QuoteMode::Single => current_word.push(character),
+                        QuoteMode::Double => escaping = true,
                     }
                 }
             }
             _ => {
-                if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
-                    if token_started {
-                        tokens.push(std::mem::take(&mut current));
-                        token_started = false;
+                if character.is_whitespace() && quote_mode == QuoteMode::None && !escaping {
+                    if word_started {
+                        tokens.push(std::mem::take(&mut current_word));
+                        word_started = false;
                     }
                 } else {
-                    if c == '|' {
-                        if is_bslash {
-                            current.push(c);
-                            is_bslash = false;
+                    if character == '|' {
+                        if escaping {
+                            current_word.push(character);
+                            escaping = false;
                             continue;
                         }
-                        if in_quote_mode == QuoteMode::None && !token_started {
+                        if quote_mode == QuoteMode::None && !word_started {
                             tokens.push('|'.to_string());
                             continue;
                         }
-                        if in_quote_mode != QuoteMode::None {
-                            current.push(c);
+                        if quote_mode != QuoteMode::None {
+                            current_word.push(character);
                             continue;
                         } else {
-                            tokens.push(std::mem::take(&mut current));
+                            tokens.push(std::mem::take(&mut current_word));
                             tokens.push('|'.to_string());
-                            token_started = false;
+                            word_started = false;
                             continue;
                         }
                     }
 
-                    current.push(c);
-                    token_started = true;
-                    is_bslash = false;
+                    current_word.push(character);
+                    word_started = true;
+                    escaping = false;
                 }
             }
         };
     }
 
-    match in_quote_mode {
+    match quote_mode {
         QuoteMode::None => {
-            if is_bslash {
+            if escaping {
                 return Err(ParseError::BackslashAtEnd);
-            } else if token_started {
-                tokens.push(current);
+            } else if word_started {
+                tokens.push(current_word);
             }
 
             Ok(tokens)
