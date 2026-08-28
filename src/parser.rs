@@ -64,6 +64,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                 if escaping {
                     current_word.push(character);
                     escaping = false;
+                    word_started = true;
                     continue;
                 } else {
                     match quote_mode {
@@ -84,6 +85,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                         if escaping {
                             current_word.push(character);
                             escaping = false;
+                            word_started = true;
                             continue;
                         }
                         if quote_mode == QuoteMode::None && !word_started {
@@ -333,6 +335,22 @@ mod tests {
         assert_eq!(
             tokenize(r"echo \'"),
             Ok(vec!["echo".to_string(), "'".to_string()])
+        );
+    }
+
+    #[test]
+    fn escaped_backslash_can_be_a_token() {
+        assert_eq!(
+            tokenize(r"echo \\"),
+            Ok(vec!["echo".to_string(), "\\".to_string()])
+        );
+    }
+
+    #[test]
+    fn escaped_pipe_can_be_a_token() {
+        assert_eq!(
+            tokenize(r"echo \|"),
+            Ok(vec!["echo".to_string(), "|".to_string()])
         );
     }
 }
