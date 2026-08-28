@@ -3,5 +3,7 @@ run:
 	cargo clippy
 	cargo run
 
-tests:
+t:
+	cargo fmt
+	cargo clippy
 	cargo test -- --nocapture

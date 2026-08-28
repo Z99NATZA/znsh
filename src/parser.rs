@@ -12,6 +12,12 @@ enum QuoteMode {
     Double,
 }
 
+pub fn parse_pipeline(tokens: Vec<String>) {
+    // here
+}
+
+const SINGLE_QUOTE: char = '\'';
+
 pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut in_quote_mode = QuoteMode::None;
     let mut tokens = Vec::new();
@@ -21,10 +27,21 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
     for c in input.chars() {
         match c {
-            '\'' => {
+            SINGLE_QUOTE => {
+                if is_bslash {
+                    current.push(c);
+                    is_bslash = false;
+                    token_started = true;
+                    continue;
+                }
+
                 match in_quote_mode {
-                    QuoteMode::None => in_quote_mode = QuoteMode::Single,
-                    QuoteMode::Single => in_quote_mode = QuoteMode::None,
+                    QuoteMode::None => {
+                        in_quote_mode = QuoteMode::Single;
+                    }
+                    QuoteMode::Single => {
+                        in_quote_mode = QuoteMode::None;
+                    }
                     QuoteMode::Double => current.push(c),
                 }
 
@@ -47,11 +64,19 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
 
                 token_started = true;
             }
-            '\\' => match in_quote_mode {
-                QuoteMode::None => is_bslash = true,
-                QuoteMode::Single => current.push(c),
-                QuoteMode::Double => is_bslash = true,
-            },
+            '\\' => {
+                if is_bslash {
+                    current.push(c);
+                    is_bslash = false;
+                    continue;
+                } else {
+                    match in_quote_mode {
+                        QuoteMode::None => is_bslash = true,
+                        QuoteMode::Single => current.push(c),
+                        QuoteMode::Double => is_bslash = true,
+                    }
+                }
+            }
             _ => {
                 if c.is_whitespace() && in_quote_mode == QuoteMode::None && !is_bslash {
                     if token_started {
@@ -288,6 +313,30 @@ mod tests {
                 "hello|".to_string(),
                 "world".to_string(),
             ])
+        );
+    }
+
+    #[test]
+    fn escaped_backslash_is_literal() {
+        assert_eq!(
+            tokenize(r"echo a\\b"),
+            Ok(vec!["echo".to_string(), r"a\b".to_string()])
+        );
+    }
+
+    #[test]
+    fn can_escape_single_quote() {
+        assert_eq!(
+            tokenize(r"echo \'hello\'"),
+            Ok(vec!["echo".to_string(), "'hello'".to_string()])
+        );
+    }
+
+    #[test]
+    fn escaped_single_quote_can_be_a_token() {
+        assert_eq!(
+            tokenize(r"echo \'"),
+            Ok(vec!["echo".to_string(), "'".to_string()])
         );
     }
 }
