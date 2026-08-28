@@ -14,6 +14,11 @@ enum QuoteMode {
 
 const SINGLE_QUOTE: char = '\'';
 
+fn push_to_word(character: char, current_word: &mut String, word_started: &mut bool) {
+    current_word.push(character);
+    *word_started = true;
+}
+
 pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
     let mut quote_mode = QuoteMode::None;
     let mut tokens = Vec::new();
@@ -25,9 +30,8 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
         match character {
             SINGLE_QUOTE => {
                 if escaping {
-                    current_word.push(character);
+                    push_to_word(character, &mut current_word, &mut word_started);
                     escaping = false;
-                    word_started = true;
                     continue;
                 }
 
@@ -38,23 +42,26 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                     QuoteMode::Single => {
                         quote_mode = QuoteMode::None;
                     }
-                    QuoteMode::Double => current_word.push(character),
+                    QuoteMode::Double => {
+                        push_to_word(character, &mut current_word, &mut word_started)
+                    }
                 }
 
                 word_started = true;
             }
             '"' => {
                 if escaping {
-                    current_word.push(character);
+                    push_to_word(character, &mut current_word, &mut word_started);
                     escaping = false;
-                    word_started = true;
 
                     continue;
                 }
 
                 match quote_mode {
                     QuoteMode::None => quote_mode = QuoteMode::Double,
-                    QuoteMode::Single => current_word.push(character),
+                    QuoteMode::Single => {
+                        push_to_word(character, &mut current_word, &mut word_started)
+                    }
                     QuoteMode::Double => quote_mode = QuoteMode::None,
                 };
 
@@ -62,14 +69,15 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
             }
             '\\' => {
                 if escaping {
-                    current_word.push(character);
+                    push_to_word(character, &mut current_word, &mut word_started);
                     escaping = false;
-                    word_started = true;
                     continue;
                 } else {
                     match quote_mode {
                         QuoteMode::None => escaping = true,
-                        QuoteMode::Single => current_word.push(character),
+                        QuoteMode::Single => {
+                            push_to_word(character, &mut current_word, &mut word_started)
+                        }
                         QuoteMode::Double => escaping = true,
                     }
                 }
@@ -83,9 +91,8 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                 } else {
                     if character == '|' {
                         if escaping {
-                            current_word.push(character);
+                            push_to_word(character, &mut current_word, &mut word_started);
                             escaping = false;
-                            word_started = true;
                             continue;
                         }
                         if quote_mode == QuoteMode::None && !word_started {
@@ -93,7 +100,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                             continue;
                         }
                         if quote_mode != QuoteMode::None {
-                            current_word.push(character);
+                            push_to_word(character, &mut current_word, &mut word_started);
                             continue;
                         } else {
                             tokens.push(std::mem::take(&mut current_word));
@@ -103,8 +110,7 @@ pub fn tokenize(input: &str) -> Result<Vec<String>, ParseError> {
                         }
                     }
 
-                    current_word.push(character);
-                    word_started = true;
+                    push_to_word(character, &mut current_word, &mut word_started);
                     escaping = false;
                 }
             }
